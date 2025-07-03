@@ -1,4 +1,43 @@
-<!DOCTYPE html>
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -9,6 +48,7 @@
   <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <!-- Configure Tailwind with custom color -->
   <script>
     tailwind.config = {
@@ -58,6 +98,7 @@
     console.log('ReactDOM script loaded:', typeof ReactDOM !== 'undefined');
     console.log('Babel script loaded:', typeof Babel !== 'undefined');
     console.log('Firebase script loaded:', typeof firebase !== 'undefined');
+    console.log('PapaParse script loaded:', typeof Papa !== 'undefined');
 
     // Error Boundary Component
     class ErrorBoundary extends React.Component {
@@ -180,13 +221,16 @@
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error(`Failed to fetch names CSV: ${response.statusText}`);
             const text = await response.text();
-            const parsedNames = text
-              .split('\n')
-              .map(line => {
-                const [first, last] = line.split(',').map(s => s.trim());
+            const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+            const parsedNames = result.data
+              .map(row => {
+                const first = row['First']?.trim();
+                const last = row['Last']?.trim();
+                if (!first || !last) return null;
                 return { first, last, full: `${first} ${last}` };
               })
-              .filter(({ first, last }) => first && last);
+              .filter(name => name !== null);
+            if (parsedNames.length === 0) throw new Error('No valid names found in CSV.');
             setNames(parsedNames);
             setFilteredNames(parsedNames);
             console.log('Names loaded:', parsedNames.length, parsedNames);
@@ -213,12 +257,16 @@
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error(`Failed to fetch questions CSV: ${response.statusText}`);
             const text = await response.text();
-            const lines = text.split('\n').slice(1);
-            const parsedQuestions = lines
-              .map(line => {
-                const [question, correct, incorrect1, incorrect2, incorrect3] = line.split(',').map(s => s.trim());
+            const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+            const parsedQuestions = result.data
+              .map(row => {
+                const question = row['Question']?.trim();
+                const correct = row['Correct_Answer']?.trim();
+                const incorrect1 = row['Incorrect_Answer_1']?.trim();
+                const incorrect2 = row['Incorrect_Answer_2']?.trim();
+                const incorrect3 = row['Incorrect_Answer_3']?.trim();
                 if (!question || !correct || !incorrect1 || !incorrect2 || !incorrect3) {
-                  console.warn('Invalid CSV row:', line);
+                  console.warn('Invalid CSV row:', row);
                   return null;
                 }
                 return {
