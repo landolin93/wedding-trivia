@@ -150,6 +150,7 @@
       const [score, setScore] = React.useState(0);
       const [selectedOption, setSelectedOption] = React.useState(null);
       const [questions, setQuestions] = React.useState([]);
+      const [shuffledQuestions, setShuffledQuestions] = React.useState([]);
       const [shuffledOptions, setShuffledOptions] = React.useState([]);
       const [questionElapsedTime, setQuestionElapsedTime] = React.useState(0);
       const [answered, setAnswered] = React.useState(false);
@@ -175,7 +176,6 @@
           setCsvLoading(true);
           setCsvError(null);
           try {
-            // Replace with your actual GitHub repository name if different from 'wedding-trivia'
             const csvUrl = 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/names.csv';
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error(`Failed to fetch names CSV: ${response.statusText}`);
@@ -186,7 +186,7 @@
                 const [first, last] = line.split(',').map(s => s.trim());
                 return { first, last, full: `${first} ${last}` };
               })
-              .filter(({ first, last }) => first && last); // Filter out invalid entries
+              .filter(({ first, last }) => first && last);
             setNames(parsedNames);
             setFilteredNames(parsedNames);
             console.log('Names loaded:', parsedNames.length, parsedNames);
@@ -213,23 +213,29 @@
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error(`Failed to fetch questions CSV: ${response.statusText}`);
             const text = await response.text();
-            const lines = text.split('\n').slice(1); // Skip header
+            const lines = text.split('\n').slice(1);
             const parsedQuestions = lines
               .map(line => {
                 const [question, correct, incorrect1, incorrect2, incorrect3] = line.split(',').map(s => s.trim());
-                if (!question || !correct || !incorrect1 || !incorrect2 || !incorrect3) return null;
+                if (!question || !correct || !incorrect1 || !incorrect2 || !incorrect3) {
+                  console.warn('Invalid CSV row:', line);
+                  return null;
+                }
                 return {
                   question: { [language]: question },
                   options: { [language]: [correct, incorrect1, incorrect2, incorrect3] },
                   correct: correct
                 };
               })
-              .filter(q => q !== null); // Filter out invalid rows
+              .filter(q => q !== null);
+            if (parsedQuestions.length === 0) {
+              throw new Error('No valid questions found in CSV.');
+            }
             setQuestions(parsedQuestions);
             console.log('Questions loaded:', parsedQuestions.length, parsedQuestions);
           } catch (error) {
             console.error('Error fetching questions:', error);
-            setQuestionsError(language === 'en' ? 'Failed to load questions.' : '无法加载问题。');
+            setQuestionsError(language === 'en' ? 'Failed to load questions: ' + error.message : '无法加载问题：' + error.message);
           } finally {
             setQuestionsLoading(false);
           }
@@ -342,7 +348,6 @@
         setLeaderboardError(null);
         try {
           if (!db) throw new Error('Firestore not initialized');
-          // Fetch Mini Leaderboard
           const miniSnapshot = await db.collection('miniLeaderboard')
             .orderBy('score', 'desc')
             .orderBy('completionTime', 'asc')
@@ -361,7 +366,6 @@
           });
           setMiniLeaderboard(miniData);
 
-          // Fetch Full Leaderboard
           const fullSnapshot = await db.collection('fullLeaderboard')
             .orderBy('score', 'desc')
             .orderBy('completionTime', 'asc')
@@ -380,7 +384,6 @@
           });
           setFullLeaderboard(fullData);
 
-          // Update last fetch time
           setLastFetchTimes(prev => ({
             ...prev,
             [gameState]: Date.now()
@@ -408,7 +411,6 @@
             console.log('Skipping fetch for', gameState, 'last fetch:', new Date(lastFetchTime).toISOString());
           }
         } else if (!['miniLeaderboard', 'fullLeaderboard', 'result'].includes(gameState)) {
-          // Reset last fetch time when leaving leaderboard states
           setLastFetchTimes(prev => {
             const newTimes = { ...prev };
             delete newTimes.miniLeaderboard;
@@ -419,21 +421,25 @@
         }
       }, [gameState, lastFetchTimes]);
 
-      // Initialize questions and options
-      React.useEffect(() => {
+      // Initialize questions and options when starting game
+      const initializeGame = () => {
         try {
-          if (gameState === 'playing' && questions.length > 0) {
-            const questionCount = gameMode === 'mini' ? 10 : questions.length;
-            const shuffledQuestions = shuffle(questions).slice(0, questionCount);
-            setQuestions(shuffledQuestions);
-            setShuffledOptions(shuffledQuestions.map(q => shuffle(q.options[language])));
-            setQuestionStartTime(performance.now());
-            setQuestionElapsedTime(0);
+          if (questions.length === 0) {
+            console.warn('No questions available to initialize game');
+            return;
           }
+          const questionCount = gameMode === 'mini' ? 10 : questions.length;
+          const newShuffledQuestions = shuffle(questions).slice(0, questionCount);
+          setShuffledQuestions(newShuffledQuestions);
+          setShuffledOptions(newShuffledQuestions.map(q => shuffle(q.options[language])));
+          setQuestionStartTime(performance.now());
+          setQuestionElapsedTime(0);
+          console.log('Game initialized with questions:', newShuffledQuestions.length);
         } catch (error) {
-          console.error('Error initializing questions:', error);
+          console.error('Error initializing game:', error);
+          setQuestionsError(language === 'en' ? 'Error initializing game.' : '初始化游戏时出错。');
         }
-      }, [gameState, gameMode, questions, language]);
+      };
 
       // Timer logic for Mini Game countdown
       React.useEffect(() => {
@@ -445,7 +451,7 @@
                 console.log('Elapsed time:', newTime, 'Countdown:', (20 - newTime).toFixed(2));
                 return newTime;
               });
-            }, 10); // Update every 10ms for hundredths precision
+            }, 10);
             return () => clearInterval(interval);
           } else if (gameMode === 'mini' && questionElapsedTime >= 20 && !answered) {
             console.log('Triggering timeout at questionElapsedTime:', questionElapsedTime);
@@ -460,6 +466,7 @@
         try {
           setLanguage(lang);
           setQuestions([]);
+          setShuffledQuestions([]);
           setShuffledOptions([]);
           setGameState('mainMenu');
         } catch (error) {
@@ -491,6 +498,10 @@
               setNameError(language === 'en' ? 'Name must match a name in the list.' : '名字必须与列表中的名字匹配。');
               return;
             }
+            if (questions.length === 0) {
+              setNameError(language === 'en' ? 'Questions not loaded. Please try again.' : '问题未加载。请重试。');
+              return;
+            }
             setNameError(null);
             setCurrentQuestion(0);
             setScore(0);
@@ -501,6 +512,7 @@
             setTotalTime(0);
             setFinalTime(0);
             setQuestionStartTime(null);
+            initializeGame();
             setGameState('playing');
           } else {
             setNameError(language === 'en' ? 'Please enter a full name.' : '请输入全名。');
@@ -520,7 +532,7 @@
             console.log('Updated totalTime:', newTotal);
             return newTotal;
           });
-          if (currentQuestion + 1 < questions.length) {
+          if (currentQuestion + 1 < shuffledQuestions.length) {
             setCurrentQuestion(currentQuestion + 1);
             setQuestionElapsedTime(0);
             setAnswered(false);
@@ -539,29 +551,41 @@
 
       const handleAnswer = (option) => {
         try {
-          if (gameMode === 'mini' && questionElapsedTime >= 20) return;
+          if (gameMode === 'mini' && questionElapsedTime >= 20) {
+            console.log('Answer ignored: time limit exceeded');
+            return;
+          }
+          if (!shuffledQuestions[currentQuestion]) {
+            console.error('No question available at index:', currentQuestion);
+            return;
+          }
           setSelectedOption(option);
           setAnswered(true);
           const timeSpent = (performance.now() - questionStartTime) / 1000;
-          console.log('Answer timeSpent:', timeSpent);
+          console.log('Answer selected:', option, 'timeSpent:', timeSpent);
           setTotalTime(prev => {
             const newTotal = prev + timeSpent;
             console.log('Updated totalTime:', newTotal);
             return newTotal;
           });
-          const correctAnswer = questions[currentQuestion].correct;
+          const correctAnswer = shuffledQuestions[currentQuestion].correct;
           if (option === correctAnswer) {
             setScore(score + 1);
+            console.log('Correct answer, new score:', score + 1);
+          } else {
+            console.log('Incorrect answer, correct was:', correctAnswer);
           }
           setTimeout(() => {
-            if (currentQuestion + 1 < questions.length) {
+            if (currentQuestion + 1 < shuffledQuestions.length) {
               setCurrentQuestion(currentQuestion + 1);
               setQuestionElapsedTime(0);
               setAnswered(false);
               setSelectedOption(null);
               setQuestionStartTime(performance.now());
+              console.log('Advancing to question:', currentQuestion + 2);
             } else {
               const finalScore = score + (option === correctAnswer ? 1 : 0);
+              console.log('Game over, final score:', finalScore);
               saveScoreAndCheckEntries(finalScore);
               setLeaderboardType(gameMode);
               setLeaderboardView('top5');
@@ -570,6 +594,7 @@
           }, 1000);
         } catch (error) {
           console.error('Error handling answer:', error);
+          setQuestionsError(language === 'en' ? 'Error processing answer.' : '处理答案时出错。');
         }
       };
 
@@ -588,10 +613,8 @@
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
           };
 
-          // Save the score
           await db.collection(leaderboardCollection).add(newEntry);
 
-          // Attempt to manage existing entries (non-critical)
           try {
             const playerEntries = await db.collection(leaderboardCollection)
               .where('name', '==', playerName)
@@ -604,10 +627,8 @@
             }
           } catch (entryError) {
             console.error('Error managing existing entries:', entryError);
-            // Do not alert user, as score was saved
           }
 
-          // Refresh leaderboards
           await fetchLeaderboards();
         } catch (error) {
           console.error('Error saving score:', error);
@@ -625,7 +646,7 @@
           setCurrentQuestion(0);
           setScore(0);
           setSelectedOption(null);
-          setQuestions([]);
+          setShuffledQuestions([]);
           setShuffledOptions([]);
           setQuestionElapsedTime(0);
           setAnswered(false);
@@ -1013,7 +1034,7 @@
                 <p className="text-lg mb-6">{language === 'en' ? 'Loading questions...' : '正在加载问题...'}</p>
               ) : questionsError ? (
                 <p className="text-lg mb-6 text-red-600">{questionsError}</p>
-              ) : questions.length === 0 ? (
+              ) : shuffledQuestions.length === 0 ? (
                 <p className="text-lg mb-6 text-red-600">{language === 'en' ? 'No questions available.' : '没有可用的问题。'}</p>
               ) : (
                 <>
@@ -1029,10 +1050,10 @@
                   )}
                   <h2 className="text-xl font-semibold mb-4">
                     {language === 'en'
-                      ? `Question ${currentQuestion + 1} of ${questions.length}`
-                      : `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`}
+                      ? `Question ${currentQuestion + 1} of ${shuffledQuestions.length}`
+                      : `第 ${currentQuestion + 1} 题，共 ${shuffledQuestions.length} 题`}
                   </h2>
-                  <p className="text-lg mb-6">{questions[currentQuestion].question[language]}</p>
+                  <p className="text-lg mb-6">{shuffledQuestions[currentQuestion].question[language]}</p>
                   <div className="w-full flex justify-center">
                     <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 max-w-[272px] mx-auto justify-center">
                       {shuffledOptions[currentQuestion]?.map((option, index) => (
@@ -1058,8 +1079,8 @@
               </h2>
               <p className="text-lg mb-6">
                 {language === 'en'
-                  ? `You scored ${score} out of ${questions.length}!`
-                  : `你得了 ${score} 分，共 ${questions.length} 题！`}
+                  ? `You scored ${score} out of ${shuffledQuestions.length}!`
+                  : `你得了 ${score} 分，共 ${shuffledQuestions.length} 题！`}
               </p>
               <p className="text-md mb-6">
                 {language === 'en'
@@ -1067,9 +1088,9 @@
                   : `在 ${formatTime(finalTime)} 内完成！`}
               </p>
               <p className="text-md mb-6">
-                {score === questions.length
+                {score === shuffledQuestions.length
                   ? (language === 'en' ? "Perfect! You're a trivia star!" : "完美！你是一个知识明星！")
-                  : score >= questions.length / 2
+                  : score >= shuffledQuestions.length / 2
                   ? (language === 'en' ? "Great job! You know your facts!" : "干得好！你懂得很多！")
                   : (language === 'en' ? "Nice try! Keep studying!" : "不错！继续学习！")}
               </p>
