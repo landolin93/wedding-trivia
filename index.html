@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -176,6 +137,24 @@
       return parts.join(' ');
     }
 
+    // Retry fetch with delay
+    async function fetchWithRetry(url, retries = 3, delay = 1000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          return await response.text();
+        } catch (error) {
+          if (i < retries - 1) {
+            console.warn(`Fetch attempt ${i + 1} failed for ${url}: ${error.message}. Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          throw error;
+        }
+      }
+    }
+
     function TriviaGame() {
       const [gameState, setGameState] = React.useState('languageSelect');
       const [language, setLanguage] = React.useState(null);
@@ -218,25 +197,34 @@
           setCsvError(null);
           try {
             const csvUrl = 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/names.csv';
-            const response = await fetch(csvUrl);
-            if (!response.ok) throw new Error(`Failed to fetch names CSV: ${response.statusText}`);
-            const text = await response.text();
+            const text = await fetchWithRetry(csvUrl);
             const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+            if (result.errors.length > 0) {
+              console.warn('PapaParse errors:', result.errors);
+            }
             const parsedNames = result.data
               .map(row => {
                 const first = row['First']?.trim();
                 const last = row['Last']?.trim();
-                if (!first || !last) return null;
+                if (!first || !last) {
+                  console.warn('Invalid name row:', row);
+                  return null;
+                }
                 return { first, last, full: `${first} ${last}` };
               })
               .filter(name => name !== null);
-            if (parsedNames.length === 0) throw new Error('No valid names found in CSV.');
+            if (parsedNames.length === 0) {
+              throw new Error('No valid names found in CSV. Expected headers: First,Last');
+            }
             setNames(parsedNames);
             setFilteredNames(parsedNames);
             console.log('Names loaded:', parsedNames.length, parsedNames);
           } catch (error) {
-            console.error('Error fetching names:', error);
-            setCsvError(language === 'en' ? 'Failed to load names.' : '无法加载姓名。');
+            console.error('Error fetching names:', error.message, error.stack);
+            setCsvError(language === 'en'
+              ? `Failed to load names: ${error.message}. You can still play without name validation.`
+              : `无法加载姓名：${error.message}。您仍可继续游戏，无需姓名验证。`);
+            setNames([]); // Allow game to proceed without names
           } finally {
             setCsvLoading(false);
           }
@@ -254,10 +242,11 @@
             const csvUrl = language === 'en'
               ? 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/English_Questions.csv'
               : 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/Chinese_Questions.csv';
-            const response = await fetch(csvUrl);
-            if (!response.ok) throw new Error(`Failed to fetch questions CSV: ${response.statusText}`);
-            const text = await response.text();
+            const text = await fetchWithRetry(csvUrl);
             const result = Papa.parse(text, { header: true, skipEmptyLines: true });
+            if (result.errors.length > 0) {
+              console.warn('PapaParse errors:', result.errors);
+            }
             const parsedQuestions = result.data
               .map(row => {
                 const question = row['Question']?.trim();
@@ -266,7 +255,7 @@
                 const incorrect2 = row['Incorrect_Answer_2']?.trim();
                 const incorrect3 = row['Incorrect_Answer_3']?.trim();
                 if (!question || !correct || !incorrect1 || !incorrect2 || !incorrect3) {
-                  console.warn('Invalid CSV row:', row);
+                  console.warn('Invalid question row:', row);
                   return null;
                 }
                 return {
@@ -277,13 +266,15 @@
               })
               .filter(q => q !== null);
             if (parsedQuestions.length === 0) {
-              throw new Error('No valid questions found in CSV.');
+              throw new Error('No valid questions found in CSV. Expected headers: Question,Correct_Answer,Incorrect_Answer_1,Incorrect_Answer_2,Incorrect_Answer_3');
             }
             setQuestions(parsedQuestions);
             console.log('Questions loaded:', parsedQuestions.length, parsedQuestions);
           } catch (error) {
-            console.error('Error fetching questions:', error);
-            setQuestionsError(language === 'en' ? 'Failed to load questions: ' + error.message : '无法加载问题：' + error.message);
+            console.error('Error fetching questions:', error.message, error.stack);
+            setQuestionsError(language === 'en'
+              ? `Failed to load questions: ${error.message}`
+              : `无法加载问题：${error.message}`);
           } finally {
             setQuestionsLoading(false);
           }
@@ -540,11 +531,13 @@
               setNameError(language === 'en' ? 'Please enter a valid full name (first and last).' : '请输入有效的全名（名字和姓氏）。');
               return;
             }
-            const isValidName = names.some(({ full }) => full.toLowerCase() === fullName.toLowerCase());
-            console.log('Validating name:', fullName, 'Is valid:', isValidName);
-            if (!isValidName) {
-              setNameError(language === 'en' ? 'Name must match a name in the list.' : '名字必须与列表中的名字匹配。');
-              return;
+            if (names.length > 0) {
+              const isValidName = names.some(({ full }) => full.toLowerCase() === fullName.toLowerCase());
+              console.log('Validating name:', fullName, 'Is valid:', isValidName);
+              if (!isValidName) {
+                setNameError(language === 'en' ? 'Name must match a name in the list.' : '名字必须与列表中的名字匹配。');
+                return;
+              }
             }
             if (questions.length === 0) {
               setNameError(language === 'en' ? 'Questions not loaded. Please try again.' : '问题未加载。请重试。');
