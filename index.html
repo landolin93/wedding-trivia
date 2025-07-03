@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3rd Grade School Trivia Game</title>
+  <!-- Use stable CDN URLs -->
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.24.7/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Configure Tailwind with custom color -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'custom-blue': '#8cabc0'
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Firebase Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+</head>
+<body class="flex flex-col min-h-screen bg-gray-200 font-sans">
+  <div id="root" class="min-h-screen flex items-center justify-center"></div>
+  <audio id="background-music" loop>
+    <source src="https://www.bensound.com/bensound-music/bensound-ukulele.mp3" type="audio/mpeg">
+    Your browser does not support the audio element.
+  </audio>
+
+  <!-- Check for file:// protocol -->
+  <script>
+    if (window.location.protocol === 'file:') {
+      alert('Please serve this file using a local server to avoid CORS errors.\n\n' +
+            'Try:\n' +
+            '- Node.js: `npx serve`\n' +
+            '- Python: `python -m http.server 8000`\n' +
+            '- VS Code: Live Server extension\n\n' +
+            'Then access via http://localhost.');
+      document.getElementById('root').innerHTML = `
+        <div class="p-8 text-center text-red-600">
+          <h1>Cannot load app</h1>
+          <p>Please serve this file using a local server (e.g., npx serve, python -m http.server, VS Code Live Server).</p>
+        </div>
+      `;
+    } else {
+      console.log('Page served via HTTP/HTTPS, proceeding with script loading.');
+    }
+  </script>
+
+  <script type="text/babel">
+    // Log script loading
+    console.log('React script loaded:', typeof React !== 'undefined');
+    console.log('ReactDOM script loaded:', typeof ReactDOM !== 'undefined');
+    console.log('Babel script loaded:', typeof Babel !== 'undefined');
+    console.log('Firebase script loaded:', typeof firebase !== 'undefined');
+
+    // Error Boundary Component
+    class ErrorBoundary extends React.Component {
+      state = { hasError: false, error: null };
+
+      static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+      }
+
+      render() {
+        if (this.state.hasError) {
+          return (
+            <div className="p-8 text-center text-red-600">
+              <h1>Something went wrong.</h1>
+              <p>{this.state.error?.message || 'Unknown error'}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 bg-custom-blue text-white px-4 py-2 rounded-lg hover:bg-opacity-80"
+              >
+                Reload
+              </button>
+            </div>
+          );
+        }
+        return this.props.children;
+      }
+    }
+
+    // Initialize Firebase with your configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-uMdBpQhau_mQRQwtUqDbNqlPR8LVfq4",
+      authDomain: "wedding-trivia-test.firebaseapp.com",
+      projectId: "wedding-trivia-test",
+      storageBucket: "wedding-trivia-test.firebasestorage.app",
+      messagingSenderId: "423493222722",
+      appId: "1:423493222722:web:fb5fe0d90d0beaa4d4c8db",
+      measurementId: "G-T5XZBDJQX2"
+    };
+
+    // Initialize Firebase
+    let db;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      console.log('Firebase initialized successfully');
+    } catch (error) {
+      console.error('Error initializing Firebase:', error);
+      alert('Failed to initialize Firebase: ' + error.message);
+    }
+
+    // 20 school-themed questions for 3rd graders with translations
+    const allQuestions = [
+      {
+        question: { en: "What is 5 + 3?", zh: "5 + 3 等于多少？" },
+        options: { en: ["6", "7", "8", "9"], zh: ["6", "7", "8", "9"] },
+        correct: "8"
+      },
+      {
+        question: { en: "Which planet do we live on?", zh: "我们住在哪个星球上？" },
+        options: { en: ["Mars", "Earth", "Jupiter", "Venus"], zh: ["火星", "地球", "木星", "金星"] },
+        correct: "Earth",
+        correctZh: "地球"
+      },
+      {
+        question: { en: "What is the capital of the United States?", zh: "美国的首都是哪里？" },
+        options: { en: ["Florida", "New York", "Washington, D.C.", "California"], zh: ["佛罗里达", "纽约", "华盛顿特区", "加利福尼亚"] },
+        correct: "Washington, D.C.",
+        correctZh: "华盛顿特区"
+      },
+      {
+        question: { en: "How many legs does a spider have?", zh: "蜘蛛有多少条腿？" },
+        options: { en: ["6", "8", "10", "12"], zh: ["6", "8", "10", "12"] },
+        correct: "8"
+      },
+      {
+        question: { en: "What is the opposite of big?", zh: "大的反义词是什么？" },
+        options: { en: ["Tall", "Small", "Long", "Wide"], zh: ["高", "小", "长", "宽"] },
+        correct: "Small",
+        correctZh: "小"
+      },
+      {
+        question: { en: "Which animal is known as man's best friend?", zh: "哪种动物被称为人类最好的朋友？" },
+        options: { en: ["Cat", "Dog", "Bird", "Fish"], zh: ["猫", "狗", "鸟", "鱼"] },
+        correct: "Dog",
+        correctZh: "狗"
+      },
+      {
+        question: { en: "What color is a ruby?", zh: "红宝石是什么颜色？" },
+        options: { en: ["Blue", "Green", "Red", "Yellow"], zh: ["蓝色", "绿色", "红色", "黄色"] },
+        correct: "Red",
+        correctZh: "红色"
+      },
+      {
+        campan    question: { en: "How many days are in a week?", zh: "一周有多少天？" },
+        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
+        correct: "7"
+      },
+      {
+        question: { en: "What do plants need to grow?", zh: "植物生长需要什么？" },
+        options: { en: ["Books", "Toys", "Sunlight", "Music"], zh: ["书", "玩具", "阳光缓    question: { en: "What is 2 x 3?", zh: "2 x 3 等于多少？" },
+        options:“6”, “7”, “8”, “9”],
+        correct: “6”
+      },
+      {
+        question: { en: "Which season comes after summer?", zh: "夏天之后的季节是什么？" },
+        options: { en: ["Spring", "Fall", "Winter", "Summer"], zh: ["春天", "秋天", "冬天", "夏天"] },
+        correct: "Fall",
+        correctZh: "秋天"
+      },
+      {
+        question: { en: "What is the shape of a stop sign?", zh: "停车标志的形状是什么？" },
+        options: { en: ["Circle", "Triangle", "Square", "Octagon"], zh: ["圆形", "三角形", "正方形", "八边形"] },
+        correct: "Octagon",
+        correctZh: "八边形"
+      },
+      {
+        question: { en: "How many months are in a year?", zh: "一年有多少个月？" },
+        options: { en: ["10", "11", "12", "13"], zh: ["10", "11", "12", "13"] },
+        correct: "12"
+      },
+      {
+        question: { en: "What do bees make?", zh: "蜜蜂制造什么？" },
+        options: { en: ["Milk", "Honey", "Cheese", "Juice"], zh: ["牛奶", "蜂蜜", "奶酪", "果汁"] },
+        correct: "Honey",
+        correctZh: "蜂蜜"
+      },
+      {
+        question: { en: "What is the name of our galaxy?", zh: "我们银河系的名字是什么？" },
+        options: { en: ["Milky Way", "Andromeda", "Spiral", "Starburst"], zh: ["银河系", "仙女座", "螺旋", "星爆"] },
+        correct: "Milky Way",
+        correctZh: "银河系"
+      },
+      {
+        question: { en: "What is 2 x 3?", zh: "2 x 3 等于多少？" },
+        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
+        correct: "6"
+      },
+      {
+        question: { en: "Which bird cannot fly?", zh: "哪种鸟不会飞？" },
+        options: { en: ["Eagle", "Penguin", "Sparrow", "Owl"], zh: ["鹰", "企鹅", "麻雀", "猫头鹰"] },
+        correct: "Penguin",
+        correctZh: "企鹅"
+      },
+      {
+        question: { en: "What is the largest continent?", zh: "最大的大陆是什么？" },
+        options: { en: ["Africa", "Asia", "Australia", "Europe"], zh: ["非洲", "亚洲", "澳大利亚", "欧洲"] },
+        correct: "Asia",
+        correctZh: "亚洲"
+      },
+      {
+        question: { en: "How many sides does a triangle have?", zh: "三角形有多少条边？" },
+        options: { en: ["2", "3", "4", "5"], zh: ["2", "3", "4", "5"] },
+        correct: "3"
+      },
+      {
+        question: { en: "What do you use to write on a chalkboard?", zh: "你在黑板上用什么写字？" },
+        options: { en: ["Pen", "Pencil", "Chalk", "Marker"], zh: ["钢笔", "铅笔", "粉笔", "马克笔"] },
+        correct: "Chalk",
+        correctZh: "粉笔"
+      }
+    ];
+
+    // Fisher-Yates shuffle
+    function shuffle(array) {
+      const newArray = [...array];
+      for (let i = newArray.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+      }
+      return newArray;
+    }
+
+    // Format time from seconds to hours, minutes, seconds (omit 0h, 0m)
+    function formatTime(seconds) {
+      if (!seconds && seconds !== 0) return '0.00s';
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainingSeconds = (seconds % 60).toFixed(2);
+      const parts = [];
+      if (hours > 0) {
+        parts.push(`${hours}h`);
+      }
+      if (minutes > 0) {
+        parts.push(`${minutes}m`);
+      }
+      parts.push(`${remainingSeconds}s`);
+      return parts.join(' ');
+    }
+
+    function TriviaGame() {
+      const [gameState, setGameState] = React.useState('languageSelect');
+      const [language, setLanguage] = React.useState(null);
+      const [fullName, setFullName] = React.useState('');
+      const [names, setNames] = React.useState([]);
+      const [filteredNames, setFilteredNames] = React.useState([]);
+      const [gameMode, setGameMode] = React.useState(null);
+      const [currentQuestion, setCurrentQuestion] = React.useState(0);
+      const [score, setScore] = React.useState(0);
+      const [selectedOption, setSelectedOption] = React.useState(null);
+      const [questions, setQuestions] = React.useState([]);
+      const [shuffledOptions, setShuffledOptions] = React.useState([]);
+      const [questionElapsedTime, setQuestionElapsedTime] = React.useState(0);
+      const [answered, setAnswered] = React.useState(false);
+      const [totalTime, setTotalTime] = React.useState(0);
+      const [finalTime, setFinalTime] = React.useState(0);
+      const [miniLeaderboard, setMiniLeaderboard] = React.useState([]);
+      const [fullLeaderboard, setFullLeaderboard] = React.useState([]);
+      const [leaderboardType, setLeaderboardType] = React.useState('mini');
+      const [leaderboardView, setLeaderboardView] = React.useState('top5');
+      const [leaderboardError, setLeaderboardError] = React.useState(null);
+      const [isLoading, setIsLoading] = React.useState(false);
+      const [questionStartTime, setQuestionStartTime] = React.useState(null);
+      const [muted, setMuted] = React.useState(false);
+      const [darkMode, setDarkMode] = React.useState(false);
+      const [lastFetchTimes, setLastFetchTimes] = React.useState({});
+
+      // Fetch names from CSV file on GitHub
+      React.useEffect(() => {
+        const fetchNames = async () => {
+          try {
+            // Construct the raw GitHub URL for the CSV file
+            // Replace 'username' and 'repository' with actual GitHub username and repo name
+            // Example: https://raw.githubusercontent.com/username/repository/main/names.csv
+            const csvUrl = '/names.csv'; // Adjust to actual GitHub raw URL or local path
+            const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error('Failed to fetch CSV');
+            const text = await response.text();
+            const parsedNames = text
+              .split('\n')
+              .map(line => {
+                const [first, last] = line.split(',').map(s => s.trim());
+                return { first, last, full: `${first} ${last}` };
+              })
+              .filter(({ first, last }) => first && last); // Filter out invalid entries
+            setNames(parsedNames);
+            setFilteredNames(parsedNames);
+          } catch (error) {
+            console.error('Error fetching names:', error);
+          }
+        };
+        fetchNames();
+      }, []);
+
+      // Filter names based on input
+      React.useEffect(() => {
+        const lowerInput = fullName.toLowerCase().trim();
+        if (lowerInput === '') {
+          setFilteredNames(names);
+        } else {
+          const filtered = names.filter(({ full }) =>
+            full.toLowerCase().includes(lowerInput)
+          );
+          setFilteredNames(filtered);
+        }
+      }, [fullName, names]);
+
+      // Toggle dark mode classes
+      React.useEffect(() => {
+        try {
+          const body = document.body;
+          const root = document.getElementById('root').firstChild;
+          if (darkMode) {
+            body.classList.add('bg-gray-700');
+            body.classList.remove('bg-gray-200');
+            root.classList.add('bg-gray-800', 'text-gray-100');
+            root.classList.remove('bg-white', 'text-gray-900');
+          } else {
+            body.classList.add('bg-gray-200');
+            body.classList.remove('bg-gray-700');
+            root.classList.add('bg-white', 'text-gray-900');
+            root.classList.remove('bg-gray-800', 'text-gray-100');
+          }
+        } catch (error) {
+          console.error('Error toggling dark mode:', error);
+        }
+      }, [darkMode]);
+
+      // Control background music
+      React.useEffect(() => {
+        try {
+          const audio = document.getElementById('background-music');
+          audio.volume = 0.2;
+          audio.muted = muted;
+          audio.play().catch(error => {
+            console.log('Autoplay prevented:', error);
+            const handleInteraction = () => {
+              audio.play().catch(err => console.error('Audio play error:', err));
+              document.removeEventListener('click', handleInteraction);
+            };
+            document.addEventListener('click', handleInteraction);
+          });
+        } catch (error) {
+          console.error('Error controlling background music:', error);
+        }
+      }, [muted]);
+
+      // Sync leaderboardType with gameState
+      React.useEffect(() => {
+        try {
+          if (gameState === 'miniLeaderboard') {
+            setLeaderboardType('mini');
+          } else if (gameState === 'fullLeaderboard') {
+            setLeaderboardType('full');
+          }
+        } catch (error) {
+          console.error('Error syncing leaderboard type:', error);
+        }
+      }, [gameState]);
+
+      // Fetch leaderboards from Firestore
+      const fetchLeaderboards = async () => {
+        console.log('Fetching leaderboards at:', new Date().toISOString());
+        setIsLoading(true);
+        setLeaderboardError(null);
+        try {
+          if (!db) throw new Error('Firestore not initialized');
+          // Fetch Mini Leaderboard
+          const miniSnapshot = await db.collection('miniLeaderboard')
+            .orderBy('score', 'desc')
+            .orderBy('completionTime', 'asc')
+            .limit(10)
+            .get();
+          console.log('Mini snapshot size:', miniSnapshot.size);
+          const miniData = miniSnapshot.empty ? [] : miniSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data.name || 'Unknown',
+              score: data.score || 0,
+              completionTime: data.completionTime || 0,
+              timestamp: data.timestamp || null
+            };
+          });
+          setMiniLeaderboard(miniData);
+
+          // Fetch Full Leaderboard
+          const fullSnapshot = await db.collection('fullLeaderboard')
+            .orderBy('score', 'desc')
+            .orderBy('completionTime', 'asc')
+            .limit(10)
+            .get();
+          console.log('Full snapshot size:', fullSnapshot.size);
+          const fullData = fullSnapshot.empty ? [] : fullSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              name: data.name || 'Unknown',
+              score: data.score || 0,
+              completionTime: data.completionTime || 0,
+              timestamp: data.timestamp || null
+            };
+          });
+          setFullLeaderboard(fullData);
+
+          // Update last fetch time
+          setLastFetchTimes(prev => ({
+            ...prev,
+            [gameState]: Date.now()
+          }));
+        } catch (error) {
+          console.error('Fetch error:', error.message, error.stack);
+          setLeaderboardError(language === 'en'
+            ? 'Failed to load leaderboards: ' + error.message
+            : '无法加载排行榜：' + error.message);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Fetch leaderboards on navigation with 15-second throttle
+      React.useEffect(() => {
+        console.log('Navigated to:', gameState, 'at:', new Date().toISOString());
+        if (['miniLeaderboard', 'fullLeaderboard', 'result'].includes(gameState) && db && !isLoading) {
+          const lastFetchTime = lastFetchTimes[gameState] || 0;
+          const elapsed = (Date.now() - lastFetchTime) / 1000;
+          if (elapsed >= 15) {
+            console.log('Fetching for', gameState, 'elapsed:', elapsed.toFixed(2), 'seconds');
+            fetchLeaderboards();
+          } else {
+            console.log('Skipping fetch for', gameState, 'last fetch:', new Date(lastFetchTime).toISOString());
+          }
+        } else if (!['miniLeaderboard', 'fullLeaderboard', 'result'].includes(gameState)) {
+          // Reset last fetch time when leaving leaderboard states
+          setLastFetchTimes(prev => {
+            const newTimes = { ...prev };
+            delete newTimes.miniLeaderboard;
+            delete newTimes.fullLeaderboard;
+            delete newTimes.result;
+            return newTimes;
+          });
+        }
+      }, [gameState, lastFetchTimes]);
+
+      // Initialize questions and options
+      React.useEffect(() => {
+        try {
+          if (gameState === 'playing' && questions.length === 0) {
+            const questionCount = gameMode === 'mini' ? 10 : allQuestions.length;
+            const shuffledQuestions = shuffle(allQuestions).slice(0, questionCount);
+            setQuestions(shuffledQuestions);
+            setShuffledOptions(shuffledQuestions.map(q => shuffle(q.options[language])));
+            setQuestionStartTime(performance.now());
+            setQuestionElapsedTime(0);
+          }
+        } catch (error) {
+          console.error('Error initializing questions:', error);
+        }
+      }, [gameState, gameMode, questions, language]);
+
+      // Timer logic for Mini Game countdown
+      React.useEffect(() => {
+        try {
+          if (gameState === 'playing' && gameMode === 'mini' && !answered && questionElapsedTime < 20) {
+            const interval = setInterval(() => {
+              setQuestionElapsedTime(prev => {
+                const newTime = prev + 0.01;
+                console.log('Elapsed time:', newTime, 'Countdown:', (20 - newTime).toFixed(2));
+                return newTime;
+              });
+            }, 10); // Update every 10ms for hundredths precision
+            return () => clearInterval(interval);
+          } else if (gameMode === 'mini' && questionElapsedTime >= 20 && !answered) {
+            console.log('Triggering timeout at questionElapsedTime:', questionElapsedTime);
+            handleTimeout();
+          }
+        } catch (error) {
+          console.error('Error in timer logic:', error);
+        }
+      }, [gameState, gameMode, answered, questionElapsedTime]);
+
+      const handleLanguageSelect = (lang) => {
+        try {
+          setLanguage(lang);
+          setGameState('mainMenu');
+        } catch (error) {
+          console.error('Error selecting language:', error);
+        }
+      };
+
+      const handleModeSelect = (mode) => {
+        try {
+          setGameMode(mode);
+          setGameState('nameInput');
+        } catch (error) {
+          console.error('Error selecting mode:', error);
+        }
+      };
+
+      const handleNameSubmit = (e) => {
+        try {
+          e.preventDefault();
+          if (fullName.trim()) {
+            const [first, last] = fullName.split(' ').map(s => s.trim());
+            if (first && last) {
+              setCurrentQuestion(0);
+              setScore(0);
+              setSelectedOption(null);
+              setQuestions([]);
+              setShuffledOptions([]);
+              setQuestionElapsedTime(0);
+              setAnswered(false);
+              setTotalTime(0);
+              setFinalTime(0);
+              setQuestionStartTime(null);
+              setGameState('playing');
+            } else {
+              alert(language === 'en' ? 'Please enter a valid full name.' : '请输入有效的全名。');
+            }
+          } else {
+            alert(language === 'en' ? 'Please enter a full name.' : '请输入全名。');
+          }
+        } catch (error) {
+          console.error('Error submitting name:', error);
+        }
+      };
+
+      const handleTimeout = () => {
+        try {
+          const timeSpent = (performance.now() - questionStartTime) / 1000;
+          console.log('Timeout timeSpent:', timeSpent);
+          setTotalTime(prev => {
+            const newTotal = prev + timeSpent;
+            console.log('Updated totalTime:', newTotal);
+            return newTotal;
+          });
+          if (currentQuestion + 1 < questions.length) {
+            setCurrentQuestion(currentQuestion + 1);
+            setQuestionElapsedTime(0);
+            setAnswered(false);
+            setSelectedOption(null);
+            setQuestionStartTime(performance.now());
+          } else {
+            saveScoreAndCheckEntries();
+            setLeaderboardType(gameMode);
+            setLeaderboardView('top5');
+            setGameState('result');
+          }
+        } catch (error) {
+          console.error('Error handling timeout:', error);
+        }
+      };
+
+      const handleAnswer = (option) => {
+        try {
+          if (gameMode === 'mini' && questionElapsedTime >= 20) return;
+          setSelectedOption(option);
+          setAnswered(true);
+          const timeSpent = (performance.now() - questionStartTime) / 1000;
+          console.log('Answer timeSpent:', timeSpent);
+          setTotalTime(prev => {
+            const newTotal = prev + timeSpent;
+            console.log('Updated totalTime:', newTotal);
+            return newTotal;
+          });
+          const correctAnswer = questions[currentQuestion].correctZh && language === 'zh' ? questions[currentQuestion].correctZh : questions[currentQuestion].correct;
+          if (option === correctAnswer) {
+            setScore(score + 1);
+          }
+          setTimeout(() => {
+            if (currentQuestion + 1 < questions.length) {
+              setCurrentQuestion(currentQuestion + 1);
+              setQuestionElapsedTime(0);
+              setAnswered(false);
+              setSelectedOption(null);
+              setQuestionStartTime(performance.now());
+            } else {
+              const finalScore = score + (option === correctAnswer ? 1 : 0);
+              saveScoreAndCheckEntries(finalScore);
+              setLeaderboardType(gameMode);
+              setLeaderboardView('top5');
+              setGameState('result');
+            }
+          }, 1000);
+        } catch (error) {
+          console.error('Error handling answer:', error);
+        }
+      };
+
+      const saveScoreAndCheckEntries = async (finalScore = score) => {
+        try {
+          if (!db) throw new Error('Firestore not initialized');
+          const leaderboardCollection = gameMode === 'mini' ? 'miniLeaderboard' : 'fullLeaderboard';
+          const playerName = fullName;
+          const finalTime = totalTime + ((performance.now() - questionStartTime) / 1000);
+          console.log('Saving completionTime:', finalTime, 'totalTime:', totalTime, 'last question time:', ((performance.now() - questionStartTime) / 1000));
+          setFinalTime(finalTime);
+          const newEntry = {
+            name: playerName,
+            score: finalScore,
+            completionTime: finalTime,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+          };
+
+          // Save the score
+          await db.collection(leaderboardCollection).add(newEntry);
+
+          // Attempt to manage existing entries (non-critical)
+          try {
+            const playerEntries = await db.collection(leaderboardCollection)
+              .where('name', '==', playerName)
+              .orderBy('score', 'desc')
+              .orderBy('completionTime', 'asc')
+              .get();
+            if (playerEntries.docs.length > 2) {
+              const lowestEntry = playerEntries.docs[playerEntries.docs.length - 1];
+              await db.collection(leaderboardCollection).doc(lowestEntry.id).delete();
+            }
+          } catch (entryError) {
+            console.error('Error managing existing entries:', entryError);
+            // Do not alert user, as score was saved
+          }
+
+          // Refresh leaderboards
+          await fetchLeaderboards();
+        } catch (error) {
+          console.error('Error saving score:', error);
+          alert(language === 'en'
+            ? 'Failed to save score: ' + error.message
+            : '无法保存分数：' + error.message);
+        }
+      };
+
+      const restartGame = () => {
+        try {
+          setGameState('mainMenu');
+          setFullName('');
+          setGameMode(null);
+          setCurrentQuestion(0);
+          setScore(0);
+          setSelectedOption(null);
+          setQuestions([]);
+          setShuffledOptions([]);
+          setQuestionElapsedTime(0);
+          setAnswered(false);
+          setTotalTime(0);
+          setFinalTime(0);
+          setLeaderboardType('mini');
+          setLeaderboardView('top5');
+          setLeaderboardError(null);
+          setQuestionStartTime(null);
+        } catch (error) {
+          console.error('Error restarting game:', error);
+        }
+      };
+
+      const renderLeaderboards = React.useCallback(() => {
+        try {
+          const maxEntries = leaderboardView === 'top5' ? 5 : Infinity;
+          const leaderboard = leaderboardType === 'mini' ? miniLeaderboard : fullLeaderboard;
+          const leaderboardTitle = language === 'en'
+            ? (leaderboardType === 'mini' ? 'Mini Game Leaderboard' : 'Full Game Leaderboard')
+            : (leaderboardType === 'mini' ? '迷你游戏排行榜' : '完整游戏排行榜');
+          const maxScore = leaderboardType === 'mini' ? 10 : 20;
+
+          const uniqueLeaderboard = Object.values(
+            leaderboard.reduce((acc, entry) => {
+              if (!acc[entry.name] || entry.score > acc[entry.name].score) {
+                acc[entry.name] = entry;
+              }
+              return acc;
+            }, {})
+          ).sort((a, b) => b.score - a.score || a.completionTime - b.completionTime);
+
+          console.log('Rendering leaderboard:', uniqueLeaderboard.map(entry => ({
+            name: entry.name,
+            score: entry.score,
+            time: formatTime(entry.completionTime)
+          })));
+
+          return (
+            <div>
+              <h3 className="text-xl font-semibold mb-4">{leaderboardTitle}</h3>
+              {isLoading ? (
+                <p className="text-lg mb-6">{language === 'en' ? 'Loading leaderboard...' : '加载排行榜...'}</p>
+              ) : leaderboardError ? (
+                <p className="text-lg mb-6 text-red-600">{leaderboardError}</p>
+              ) : (
+                <div className="overflow-x-auto mb-6">
+                  <table className={`table-auto w-full max-w-md mx-auto text-left text-sm ${darkMode ? 'text-gray-100' : 'text-gray-900'}`}>
+                    <thead>
+                      <tr className={darkMode ? 'bg-gray-700' : 'bg-gray-200'}>
+                        <th className="w-12 px-4 py-2 border">{language === 'en' ? 'Place' : '排名'}</th>
+                        <th className="px-4 py-2 border">{language === 'en' ? 'Name' : '姓名'}</th>
+                        <th className="px-4 py-2 border">{language === 'en' ? 'Score' : '分数'}</th>
+                        <th className="px-4 py-2 border">{language === 'en' ? 'Time' : '时间'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {uniqueLeaderboard.length > 0 ? (
+                        uniqueLeaderboard.slice(0, maxEntries).map((entry, index) => (
+                          <tr key={index} className={darkMode ? 'bg-gray-800' : 'bg-white'}>
+                            <td className="px-4 py-2 border">{index + 1}</td>
+                            <td className="px-4 py-2 border min-w-0 truncate">{entry.name}</td>
+                            <td className="px-4 py-2 border">{entry.score}/{maxScore}</td>
+                            <td className="px-4 py-2 border">{formatTime(entry.completionTime)}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="4" className="px-4 py-2 border text-center">
+                            {language === 'en' ? 'No scores yet!' : '还没有分数！'}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        } catch (error) {
+          console.error('Error rendering leaderboards:', error);
+          return <p className="text-lg mb-6 text-red-600">{language === 'en' ? 'Error displaying leaderboard.' : '显示排行榜时出错。'}</p>;
+        }
+      }, [leaderboardType, leaderboardView, miniLeaderboard, fullLeaderboard, isLoading, leaderboardError, language, darkMode]);
+
+      return (
+        <div className={`p-8 rounded-lg shadow-lg max-w-lg w-full mx-auto text-center ${darkMode ? 'bg-gray-800 text-gray-100' : 'bg-white text-gray-900'}`}>
+          {/* Icons Row */}
+          <div className="flex justify-between mb-4">
+            <button
+              onClick={() => setDarkMode(!darkMode)}
+              className={`w-12 h-12 flex items-center justify-center rounded-lg text-2xl ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              {darkMode ? '\u{2600}' : '\u{1F319}'}
+            </button>
+            <button
+              onClick={() => setMuted(!muted)}
+              className={`w-12 h-12 flex items-center justify-center rounded-lg text-2xl ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+            >
+              {muted ? '\u{1F507}' : '\u{1F509}'}
+            </button>
+          </div>
+          {gameState === 'languageSelect' && (
+            <div>
+              <div className="flex justify-center space-x-4 mt-12">
+                <button
+                  onClick={() => handleLanguageSelect('en')}
+                  className="bg-custom-blue text-white w-24 h-24 rounded-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg"
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => handleLanguageSelect('zh')}
+                  className="bg-custom-blue text-white w-24 h-24 rounded-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-lg"
+                >
+                  中文
+                </button>
+              </div>
+            </div>
+          )}
+          {gameState === 'mainMenu' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? '3rd Grade School Trivia' : '三年级学校知识竞赛'}
+              </h1>
+              <p className="text-lg mb-6">
+                {language === 'en' ? 'Welcome to the trivia game!' : '欢迎参加知识竞赛！'}
+              </p>
+              <div className="flex flex-wrap space-x-4 justify-center">
+                <button
+                  onClick={() => setGameState('leaderboardSelect')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Leader<br />board</> : <>排行<br />榜</>}
+                </button>
+                <button
+                  onClick={() => setGameState('playGame')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm"
+                >
+                  {language === 'en' ? 'Play' : '开始'}
+                </button>
+              </div>
+            </div>
+          )}
+          {gameState === 'leaderboardSelect' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? 'Leaderboards' : '排行榜'}
+              </h1>
+              <p className="text-lg mb-6">
+                {language === 'en' ? 'Select a leaderboard' : '选择排行榜'}
+              </p>
+              <div className="flex flex-wrap space-x-4 justify-center">
+                <button
+                  onClick={() => setGameState('miniLeaderboard')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Mini<br />Game</> : <>迷你<br />游戏</>}
+                </button>
+                <button
+                  onClick={() => setGameState('fullLeaderboard')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Full<br />Game</> : <>完整<br />游戏</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+            </div>
+          )}
+          {gameState === 'miniLeaderboard' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? 'Mini Game Leaderboard' : '迷你游戏排行榜'}
+              </h1>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setLeaderboardView('top5')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'top5' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'Top 5' : '前5'}
+                </button>
+                <button
+                  onClick={() => setLeaderboardView('all')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'all' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'All' : '全部'}
+                </button>
+              </div>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setGameState('fullLeaderboard')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? <>Full Game<br />Leaderboard</> : <>完整游戏<br />排行榜</>}
+                </button>
+                <button
+                  onClick={() => setGameState('playGame')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Play<br />Game</> : <>开始<br />游戏</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+              {renderLeaderboards()}
+            </div>
+          )}
+          {gameState === 'fullLeaderboard' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? 'Full Game Leaderboard' : '完整游戏排行榜'}
+              </h1>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setLeaderboardView('top5')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'top5' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'Top 5' : '前5'}
+                </button>
+                <button
+                  onClick={() => setLeaderboardView('all')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'all' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'All' : '全部'}
+                </button>
+              </div>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setGameState('miniLeaderboard')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? <>Mini Game<br />Leaderboard</> : <>迷你游戏<br />排行榜</>}
+                </button>
+                <button
+                  onClick={() => setGameState('playGame')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Play<br />Game</> : <>开始<br />游戏</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+              {renderLeaderboards()}
+            </div>
+          )}
+          {gameState === 'playGame' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? 'Play Game' : '开始游戏'}
+              </h1>
+              <p className="text-lg mb-6">
+                {language === 'en' ? 'Choose a mode' : '选择模式'}
+              </p>
+              <div className="flex flex-wrap space-x-4 justify-center">
+                <button
+                  onClick={() => handleModeSelect('mini')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Mini<br />(10Q, 20s)</> : <>迷你<br />(10题, 20秒)</>}
+                </button>
+                <button
+                  onClick={() => handleModeSelect('full')}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
+                >
+                  {language === 'en' ? <>Full<br />(20Q)</> : <>完整<br />(20题)</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+            </div>
+          )}
+          {gameState === 'nameInput' && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? '3rd Grade School Trivia' : '三年级学校知识竞赛'}
+              </h1>
+              <p className="text-lg mb-6">
+                {language === 'en'
+                  ? `Enter name for ${gameMode === 'mini' ? 'Mini' : 'Full'} Game!`
+                  : `输入名字开始${gameMode === 'mini' ? '迷你' : '完整'}游戏！`}
+              </p>
+              <div className="relative w-full">
+                <input
+                  type="text"
+                  placeholder={language === 'en' ? 'Full Name' : '全名'}
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}
+                  required
+                />
+                {filteredNames.length > 0 && fullName.trim() && (
+                  <ul className={`absolute w-full max-h-40 overflow-y-auto border rounded-lg mt-1 ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'} z-10`}>
+                    {filteredNames.map((name, index) => (
+                      <li
+                        key={index}
+                        onClick={() => setFullName(name.full)}
+                        className={`p-2 hover:bg-opacity-80 cursor-pointer ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
+                      >
+                        {name.full}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div className="flex flex-wrap space-x-4 justify-center mt-4">
+                <button
+                  onClick={handleNameSubmit}
+                  className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex items-center justify-center text-sm"
+                >
+                  {language === 'en' ? 'Start' : '开始'}
+                </button>
+                <button
+                  onClick={() => setGameState('playGame')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? <>Back to<br />Modes</> : <>返回<br />模式</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+            </div>
+          )}
+          {gameState === 'playing' && questions.length > 0 && (
+            <div>
+              <h1 className="text-3xl font-bold mb-4 text-custom-blue">
+                {language === 'en' ? '3rd Grade School Trivia' : '三年级学校知识竞赛'}
+              </h1>
+              <p className="text-lg mb-6">
+                {language === 'en' ? `Welcome, ${fullName}!` : `欢迎, ${fullName}！`}
+              </p>
+              {gameMode === 'mini' && (
+                <p className="text-md mb-4 text-red-600">
+                  {language === 'en'
+                    ? `Time left: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}s`
+                    : `剩余时间: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}秒`}
+                </p>
+              )}
+              <h2 className="text-xl font-semibold mb-4">
+                {language === 'en'
+                  ? `Question ${currentQuestion + 1} of ${questions.length}`
+                  : `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`}
+              </h2>
+              <p className="text-lg mb-6">{questions[currentQuestion].question[language]}</p>
+              <div className="w-full flex justify-center">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 max-w-[272px] mx-auto justify-center">
+                  {shuffledOptions[currentQuestion]?.map((option, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleAnswer(option)}
+                      disabled={selectedOption !== null || answered || (gameMode === 'mini' && questionElapsedTime >= 20)}
+                      className={`w-32 h-16 rounded-lg transition-colors p-2 flex items-center justify-center text-center text-sm flex-wrap ${darkMode ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-200'} disabled:cursor-not-allowed`}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {gameState === 'result' && (
+            <div>
+              <h2 className="text-2xl font-semibold mb-4">
+                {language === 'en' ? `Game Over, ${fullName}!` : `游戏结束，${fullName}！`}
+              </h2>
+              <p className="text-lg mb-6">
+                {language === 'en'
+                  ? `You scored ${score} out of ${questions.length}!`
+                  : `你得了 ${score} 分，共 ${questions.length} 题！`}
+              </p>
+              <p className="text-md mb-6">
+                {language === 'en'
+                  ? `Completed in ${formatTime(finalTime)}!`
+                  : `在 ${formatTime(finalTime)} 内完成！`}
+              </p>
+              <p className="text-md mb-6">
+                {score === questions.length
+                  ? (language === 'en' ? "Perfect! You're a trivia star!" : "完美！你是一个知识明星！")
+                  : score >= questions.length / 2
+                  ? (language === 'en' ? "Great job! You know your facts!" : "干得好！你懂得很多！")
+                  : (language === 'en' ? "Nice try! Keep studying!" : "不错！继续学习！")}
+              </p>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setLeaderboardView('top5')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'top5' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'Top 5' : '前5'}
+                </button>
+                <button
+                  onClick={() => setLeaderboardView('all')}
+                  className={`w-12 h-12 rounded-lg flex items-center justify-center text-xs ${leaderboardView === 'all' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? 'All' : '全部'}
+                </button>
+              </div>
+              <div className="flex flex-wrap space-x-4 justify-center mb-4">
+                <button
+                  onClick={() => setLeaderboardType('mini')}
+                  className={`w-24 h-24 rounded-lg flex flex-col items-center justify-center text-sm ${leaderboardType === 'mini' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? <>Mini Game<br />Leaderboard</> : <>迷你游戏<br />排行榜</>}
+                </button>
+                <button
+                  onClick={() => setLeaderboardType('full')}
+                  className={`w-24 h-24 rounded-lg flex flex-col items-center justify-center text-sm ${leaderboardType === 'full' ? 'bg-custom-blue text-white' : darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  {language === 'en' ? <>Full Game<br />Leaderboard</> : <>完整游戏<br />排行榜</>}
+                </button>
+                <button
+                  onClick={() => setGameState('mainMenu')}
+                  className={`w-24 h-24 rounded-lg transition-colors flex flex-col items-center justify-center text-sm ${darkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
+                >
+                  🏠 {language === 'en' ? <>Main<br />Menu</> : <>主<br />菜单</>}
+                </button>
+              </div>
+              {renderLeaderboards()}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Render the app with error boundary
+    try {
+      const rootElement = document.getElementById('root');
+      if (!rootElement) throw new Error('Root element not found');
+      console.log('Rendering React app with Tailwind classes');
+      const root = ReactDOM.createRoot(rootElement);
+      root.render(
+        <ErrorBoundary>
+          <TriviaGame />
+        </ErrorBoundary>
+      );
+      console.log('React app rendered successfully');
+    } catch (error) {
+      console.error('Error rendering React app:', error);
+      document.getElementById('root').innerHTML = `
+        <div className="p-8 text-center text-red-600">
+          <h1>Failed to load the app</h1>
+          <p>${error.message}</p>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>
