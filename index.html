@@ -285,7 +285,7 @@
         const fetchNames = async () => {
           try {
             // Replace with actual GitHub raw URL, e.g., https://raw.githubusercontent.com/username/repository/main/names.csv
-            const csvUrl = '/names.csv'; // Assumes names.csv is in the same directory as index.html
+            const csvUrl = 'https://raw.githubusercontent.com/landolin93/repository/main/names.csv'; // Assumes names.csv is in the same directory as index.html
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error('Failed to fetch CSV');
             const text = await response.text();
