@@ -108,124 +108,6 @@
       alert('Failed to initialize Firebase: ' + error.message);
     }
 
-    // 20 school-themed questions for 3rd graders with translations
-    const allQuestions = [
-      {
-        question: { en: "What is 5 + 3?", zh: "5 + 3 等于多少？" },
-        options: { en: ["6", "7", "8", "9"], zh: ["6", "7", "8", "9"] },
-        correct: "8"
-      },
-      {
-        question: { en: "Which planet do we live on?", zh: "我们住在哪个星球上？" },
-        options: { en: ["Mars", "Earth", "Jupiter", "Venus"], zh: ["火星", "地球", "木星", "金星"] },
-        correct: "Earth",
-        correctZh: "地球"
-      },
-      {
-        question: { en: "What is the capital of the United States?", zh: "美国的首都是哪里？" },
-        options: { en: ["Florida", "New York", "Washington, D.C.", "California"], zh: ["佛罗里达", "纽约", "华盛顿特区", "加利福尼亚"] },
-        correct: "Washington, D.C.",
-        correctZh: "华盛顿特区"
-      },
-      {
-        question: { en: "How many legs does a spider have?", zh: "蜘蛛有多少条腿？" },
-        options: { en: ["6", "8", "10", "12"], zh: ["6", "8", "10", "12"] },
-        correct: "8"
-      },
-      {
-        question: { en: "What is the opposite of big?", zh: "大的反义词是什么？" },
-        options: { en: ["Tall", "Small", "Long", "Wide"], zh: ["高", "小", "长", "宽"] },
-        correct: "Small",
-        correctZh: "小"
-      },
-      {
-        question: { en: "Which animal is known as man's best friend?", zh: "哪种动物被称为人类最好的朋友？" },
-        options: { en: ["Cat", "Dog", "Bird", "Fish"], zh: ["猫", "狗", "鸟", "鱼"] },
-        correct: "Dog",
-        correctZh: "狗"
-      },
-      {
-        question: { en: "What color is a ruby?", zh: "红宝石是什么颜色？" },
-        options: { en: ["Blue", "Green", "Red", "Yellow"], zh: ["蓝色", "绿色", "红色", "黄色"] },
-        correct: "Red",
-        correctZh: "红色"
-      },
-      {
-        question: { en: "How many days are in a week?", zh: "一周有多少天？" },
-        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
-        correct: "7"
-      },
-      {
-        question: { en: "What do plants need to grow?", zh: "植物生长需要什么？" },
-        options: { en: ["Books", "Toys", "Sunlight", "Music"], zh: ["书", "玩具", "阳光", "音乐"] },
-        correct: "Sunlight",
-        correctZh: "阳光"
-      },
-      {
-        question: { en: "What is 10 - 4?", zh: "10 - 4 等于多少？" },
-        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
-        correct: "6"
-      },
-      {
-        question: { en: "Which season comes after summer?", zh: "夏天之后的季节是什么？" },
-        options: { en: ["Spring", "Fall", "Winter", "Summer"], zh: ["春天", "秋天", "冬天", "夏天"] },
-        correct: "Fall",
-        correctZh: "秋天"
-      },
-      {
-        question: { en: "What is the shape of a stop sign?", zh: "停车标志的形状是什么？" },
-        options: { en: ["Circle", "Triangle", "Square", "Octagon"], zh: ["圆形", "三角形", "正方形", "八边形"] },
-        correct: "Octagon",
-        correctZh: "八边形"
-      },
-      {
-        question: { en: "How many months are in a year?", zh: "一年有多少个月？" },
-        options: { en: ["10", "11", "12", "13"], zh: ["10", "11", "12", "13"] },
-        correct: "12"
-      },
-      {
-        question: { en: "What do bees make?", zh: "蜜蜂制造什么？" },
-        options: { en: ["Milk", "Honey", "Cheese", "Juice"], zh: ["牛奶", "蜂蜜", "奶酪", "果汁"] },
-        correct: "Honey",
-        correctZh: "蜂蜜"
-      },
-      {
-        question: { en: "What is the name of our galaxy?", zh: "我们银河系的名字是什么？" },
-        options: { en: ["Milky Way", "Andromeda", "Spiral", "Starburst"], zh: ["银河系", "仙女座", "螺旋", "星爆"] },
-        correct: "Milky Way",
-        correctZh: "银河系"
-      },
-      {
-        question: { en: "Which bird cannot fly?", zh: "哪种鸟不会飞？" },
-        options: { en: ["Eagle", "Penguin", "Sparrow", "Owl"], zh: ["鹰", "企鹅", "麻雀", "猫头鹰"] },
-        correct: "Penguin",
-        correctZh: "企鹅"
-      },
-      {
-        question: { en: "What is the largest continent?", zh: "最大的大陆是什么？" },
-        options: { en: ["Africa", "Asia", "Australia", "Europe"], zh: ["非洲", "亚洲", "澳大利亚", "欧洲"] },
-        correct: "Asia",
-        correctZh: "亚洲"
-      },
-      {
-        question: { en: "How many sides does a triangle have?", zh: "三角形有多少条边？" },
-        options: { en: ["2", "3", "4", "5"], zh: ["2", "3", "4", "5"] },
-        correct: "3"
-      },
-      {
-        question: { en: "What do you use to write on a chalkboard?", zh: "你在黑板上用什么写字？" },
-        options: { en: ["Pen", "Pencil", "Chalk", "Marker"], zh: ["钢笔", "铅笔", "粉笔", "马克笔"] },
-        correct: "Chalk",
-        correctZh: "粉笔"
-      },
-      {
-        question: { en: "What is the smell of rain like?", zh: "雨的味道是什么样的？" },
-        options: { en: ["Sweet", "Sour", "Bitter", "Salty"], zh: ["甜的", "酸的", "苦的", "咸的"] },
-        correct: "Sweet",
-        correctZh: "甜的"
-      }
-    ];
-
     // Fisher-Yates shuffle
     function shuffle(array) {
       const newArray = [...array];
@@ -283,6 +165,8 @@
       const [muted, setMuted] = React.useState(false);
       const [darkMode, setDarkMode] = React.useState(false);
       const [lastFetchTimes, setLastFetchTimes] = React.useState({});
+      const [questionsLoading, setQuestionsLoading] = React.useState(false);
+      const [questionsError, setQuestionsError] = React.useState(null);
       const inputRef = React.useRef(null);
 
       // Fetch names from CSV file
@@ -294,7 +178,7 @@
             // Replace with your actual GitHub repository name if different from 'wedding-trivia'
             const csvUrl = 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/names.csv';
             const response = await fetch(csvUrl);
-            if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.statusText}`);
+            if (!response.ok) throw new Error(`Failed to fetch names CSV: ${response.statusText}`);
             const text = await response.text();
             const parsedNames = text
               .split('\n')
@@ -314,6 +198,43 @@
           }
         };
         fetchNames();
+      }, [language]);
+
+      // Fetch questions from CSV file based on language
+      React.useEffect(() => {
+        const fetchQuestions = async () => {
+          if (!language) return;
+          setQuestionsLoading(true);
+          setQuestionsError(null);
+          try {
+            const csvUrl = language === 'en'
+              ? 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/English_Questions.csv'
+              : 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/Chinese_Questions.csv';
+            const response = await fetch(csvUrl);
+            if (!response.ok) throw new Error(`Failed to fetch questions CSV: ${response.statusText}`);
+            const text = await response.text();
+            const lines = text.split('\n').slice(1); // Skip header
+            const parsedQuestions = lines
+              .map(line => {
+                const [question, correct, incorrect1, incorrect2, incorrect3] = line.split(',').map(s => s.trim());
+                if (!question || !correct || !incorrect1 || !incorrect2 || !incorrect3) return null;
+                return {
+                  question: { [language]: question },
+                  options: { [language]: [correct, incorrect1, incorrect2, incorrect3] },
+                  correct: correct
+                };
+              })
+              .filter(q => q !== null); // Filter out invalid rows
+            setQuestions(parsedQuestions);
+            console.log('Questions loaded:', parsedQuestions.length, parsedQuestions);
+          } catch (error) {
+            console.error('Error fetching questions:', error);
+            setQuestionsError(language === 'en' ? 'Failed to load questions.' : '无法加载问题。');
+          } finally {
+            setQuestionsLoading(false);
+          }
+        };
+        fetchQuestions();
       }, [language]);
 
       // Filter names based on input
@@ -501,9 +422,9 @@
       // Initialize questions and options
       React.useEffect(() => {
         try {
-          if (gameState === 'playing' && questions.length === 0) {
-            const questionCount = gameMode === 'mini' ? 10 : allQuestions.length;
-            const shuffledQuestions = shuffle(allQuestions).slice(0, questionCount);
+          if (gameState === 'playing' && questions.length > 0) {
+            const questionCount = gameMode === 'mini' ? 10 : questions.length;
+            const shuffledQuestions = shuffle(questions).slice(0, questionCount);
             setQuestions(shuffledQuestions);
             setShuffledOptions(shuffledQuestions.map(q => shuffle(q.options[language])));
             setQuestionStartTime(performance.now());
@@ -538,6 +459,8 @@
       const handleLanguageSelect = (lang) => {
         try {
           setLanguage(lang);
+          setQuestions([]);
+          setShuffledOptions([]);
           setGameState('mainMenu');
         } catch (error) {
           console.error('Error selecting language:', error);
@@ -572,7 +495,6 @@
             setCurrentQuestion(0);
             setScore(0);
             setSelectedOption(null);
-            setQuestions([]);
             setShuffledOptions([]);
             setQuestionElapsedTime(0);
             setAnswered(false);
@@ -627,7 +549,7 @@
             console.log('Updated totalTime:', newTotal);
             return newTotal;
           });
-          const correctAnswer = questions[currentQuestion].correctZh && language === 'zh' ? questions[currentQuestion].correctZh : questions[currentQuestion].correct;
+          const correctAnswer = questions[currentQuestion].correct;
           if (option === correctAnswer) {
             setScore(score + 1);
           }
@@ -1082,41 +1004,51 @@
               </div>
             </div>
           )}
-          {gameState === 'playing' && questions.length > 0 && (
+          {gameState === 'playing' && (
             <div>
               <h1 className="text-3xl font-bold mb-4 text-custom-blue">
                 {language === 'en' ? '3rd Grade School Trivia' : '三年级学校知识竞赛'}
               </h1>
-              <p className="text-lg mb-6">
-                {language === 'en' ? `Welcome, ${fullName}!` : `欢迎, ${fullName}！`}
-              </p>
-              {gameMode === 'mini' && (
-                <p className="text-md mb-4 text-red-600">
-                  {language === 'en'
-                    ? `Time left: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}s`
-                    : `剩余时间: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}秒`}
-                </p>
+              {questionsLoading ? (
+                <p className="text-lg mb-6">{language === 'en' ? 'Loading questions...' : '正在加载问题...'}</p>
+              ) : questionsError ? (
+                <p className="text-lg mb-6 text-red-600">{questionsError}</p>
+              ) : questions.length === 0 ? (
+                <p className="text-lg mb-6 text-red-600">{language === 'en' ? 'No questions available.' : '没有可用的问题。'}</p>
+              ) : (
+                <>
+                  <p className="text-lg mb-6">
+                    {language === 'en' ? `Welcome, ${fullName}!` : `欢迎, ${fullName}！`}
+                  </p>
+                  {gameMode === 'mini' && (
+                    <p className="text-md mb-4 text-red-600">
+                      {language === 'en'
+                        ? `Time left: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}s`
+                        : `剩余时间: ${Math.max(0, 20 - questionElapsedTime).toFixed(2)}秒`}
+                    </p>
+                  )}
+                  <h2 className="text-xl font-semibold mb-4">
+                    {language === 'en'
+                      ? `Question ${currentQuestion + 1} of ${questions.length}`
+                      : `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`}
+                  </h2>
+                  <p className="text-lg mb-6">{questions[currentQuestion].question[language]}</p>
+                  <div className="w-full flex justify-center">
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 max-w-[272px] mx-auto justify-center">
+                      {shuffledOptions[currentQuestion]?.map((option, index) => (
+                        <button
+                          key={index}
+                          onClick={() => handleAnswer(option)}
+                          disabled={selectedOption !== null || answered || (gameMode === 'mini' && questionElapsedTime >= 20)}
+                          className={`w-32 h-16 rounded-lg transition-colors p-2 flex items-center justify-center text-center text-sm flex-wrap ${darkMode ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-200'} disabled:cursor-not-allowed`}
+                        >
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
-              <h2 className="text-xl font-semibold mb-4">
-                {language === 'en'
-                  ? `Question ${currentQuestion + 1} of ${questions.length}`
-                  : `第 ${currentQuestion + 1} 题，共 ${questions.length} 题`}
-              </h2>
-              <p className="text-lg mb-6">{questions[currentQuestion].question[language]}</p>
-              <div className="w-full flex justify-center">
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 max-w-[272px] mx-auto justify-center">
-                  {shuffledOptions[currentQuestion]?.map((option, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleAnswer(option)}
-                      disabled={selectedOption !== null || answered || (gameMode === 'mini' && questionElapsedTime >= 20)}
-                      className={`w-32 h-16 rounded-lg transition-colors p-2 flex items-center justify-center text-center text-sm flex-wrap ${darkMode ? 'bg-gray-700 hover:bg-gray-600 disabled:bg-gray-700' : 'bg-gray-200 hover:bg-gray-300 disabled:bg-gray-200'} disabled:cursor-not-allowed`}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              </div>
             </div>
           )}
           {gameState === 'result' && (
