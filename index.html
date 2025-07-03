@@ -108,7 +108,7 @@
       alert('Failed to initialize Firebase: ' + error.message);
     }
 
-    // 20 school-themed questions for 3rd graders with translations
+    // 19 school-themed questions for 3rd graders with translations
     const allQuestions = [
       {
         question: { en: "What is 5 + 3?", zh: "5 + 3 等于多少？" },
@@ -151,15 +151,20 @@
         correctZh: "红色"
       },
       {
-        campan    question: { en: "How many days are in a week?", zh: "一周有多少天？" },
+        question: { en: "How many days are in a week?", zh: "一周有多少天？" },
         options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
         correct: "7"
       },
       {
         question: { en: "What do plants need to grow?", zh: "植物生长需要什么？" },
-        options: { en: ["Books", "Toys", "Sunlight", "Music"], zh: ["书", "玩具", "阳光缓    question: { en: "What is 2 x 3?", zh: "2 x 3 等于多少？" },
-        options:“6”, “7”, “8”, “9”],
-        correct: “6”
+        options: { en: ["Books", "Toys", "Sunlight", "Music"], zh: ["书", "玩具", "阳光", "音乐"] },
+        correct: "Sunlight",
+        correctZh: "阳光"
+      },
+      {
+        question: { en: "What is 10 - 4?", zh: "10 - 4 等于多少？" },
+        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
+        correct: "6"
       },
       {
         question: { en: "Which season comes after summer?", zh: "夏天之后的季节是什么？" },
@@ -189,11 +194,6 @@
         options: { en: ["Milky Way", "Andromeda", "Spiral", "Starburst"], zh: ["银河系", "仙女座", "螺旋", "星爆"] },
         correct: "Milky Way",
         correctZh: "银河系"
-      },
-      {
-        question: { en: "What is 2 x 3?", zh: "2 x 3 等于多少？" },
-        options: { en: ["5", "6", "7", "8"], zh: ["5", "6", "7", "8"] },
-        correct: "6"
       },
       {
         question: { en: "Which bird cannot fly?", zh: "哪种鸟不会飞？" },
@@ -278,10 +278,8 @@
       React.useEffect(() => {
         const fetchNames = async () => {
           try {
-            // Construct the raw GitHub URL for the CSV file
-            // Replace 'username' and 'repository' with actual GitHub username and repo name
-            // Example: https://raw.githubusercontent.com/username/repository/main/names.csv
-            const csvUrl = '/names.csv'; // Adjust to actual GitHub raw URL or local path
+            // Replace with actual GitHub raw URL or local path
+            const csvUrl = '/names.csv'; // e.g., https://raw.githubusercontent.com/username/repository/main/names.csv
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error('Failed to fetch CSV');
             const text = await response.text();
@@ -670,7 +668,7 @@
           const leaderboardTitle = language === 'en'
             ? (leaderboardType === 'mini' ? 'Mini Game Leaderboard' : 'Full Game Leaderboard')
             : (leaderboardType === 'mini' ? '迷你游戏排行榜' : '完整游戏排行榜');
-          const maxScore = leaderboardType === 'mini' ? 10 : 20;
+          const maxScore = leaderboardType === 'mini' ? 10 : 19;
 
           const uniqueLeaderboard = Object.values(
             leaderboard.reduce((acc, entry) => {
@@ -926,7 +924,7 @@
                   onClick={() => handleModeSelect('full')}
                   className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
                 >
-                  {language === 'en' ? <>Full<br />(20Q)</> : <>完整<br />(20题)</>}
+                  {language === 'en' ? <>Full<br />(19Q)</> : <>完整<br />(19题)</>}
                 </button>
                 <button
                   onClick={() => setGameState('mainMenu')}
