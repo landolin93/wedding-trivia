@@ -259,6 +259,9 @@
       const [fullName, setFullName] = React.useState('');
       const [names, setNames] = React.useState([]);
       const [filteredNames, setFilteredNames] = React.useState([]);
+      const [csvError, setCsvError] = React.useState(null);
+      const [csvLoading, setCsvLoading] = React.useState(false);
+      const [showDropdown, setShowDropdown] = React.useState(false);
       const [gameMode, setGameMode] = React.useState(null);
       const [currentQuestion, setCurrentQuestion] = React.useState(0);
       const [score, setScore] = React.useState(0);
@@ -279,15 +282,18 @@
       const [muted, setMuted] = React.useState(false);
       const [darkMode, setDarkMode] = React.useState(false);
       const [lastFetchTimes, setLastFetchTimes] = React.useState({});
+      const inputRef = React.useRef(null);
 
-      // Fetch names from CSV file in the main branch
+      // Fetch names from CSV file
       React.useEffect(() => {
         const fetchNames = async () => {
+          setCsvLoading(true);
+          setCsvError(null);
           try {
-            // Replace with actual GitHub raw URL, e.g., https://raw.githubusercontent.com/username/repository/main/names.csv
-            const csvUrl = 'https://raw.githubusercontent.com/landolin93/repository/main/names.csv'; // Assumes names.csv is in the same directory as index.html
+            // Replace with your actual GitHub repository name if different from 'wedding-trivia'
+            const csvUrl = 'https://raw.githubusercontent.com/landolin93/wedding-trivia/main/names.csv';
             const response = await fetch(csvUrl);
-            if (!response.ok) throw new Error('Failed to fetch CSV');
+            if (!response.ok) throw new Error(`Failed to fetch CSV: ${response.statusText}`);
             const text = await response.text();
             const parsedNames = text
               .split('\n')
@@ -298,26 +304,45 @@
               .filter(({ first, last }) => first && last); // Filter out invalid entries
             setNames(parsedNames);
             setFilteredNames(parsedNames);
-            console.log('Names loaded:', parsedNames.length);
+            console.log('Names loaded:', parsedNames.length, parsedNames);
           } catch (error) {
             console.error('Error fetching names:', error);
+            setCsvError(language === 'en' ? 'Failed to load names.' : '无法加载姓名。');
+          } finally {
+            setCsvLoading(false);
           }
         };
         fetchNames();
-      }, []);
+      }, [language]);
 
       // Filter names based on input
       React.useEffect(() => {
         const lowerInput = fullName.toLowerCase().trim();
         if (lowerInput === '') {
           setFilteredNames(names);
+          setShowDropdown(false);
         } else {
           const filtered = names.filter(({ full }) =>
             full.toLowerCase().includes(lowerInput)
           );
           setFilteredNames(filtered);
+          setShowDropdown(filtered.length > 0);
+          console.log('Filtered names:', filtered.length, filtered);
         }
       }, [fullName, names]);
+
+      // Handle click outside to close dropdown
+      React.useEffect(() => {
+        const handleClickOutside = (event) => {
+          if (inputRef.current && !inputRef.current.contains(event.target)) {
+            setShowDropdown(false);
+          }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+          document.removeEventListener('mousedown', handleClickOutside);
+        };
+      }, []);
 
       // Toggle dark mode classes
       React.useEffect(() => {
@@ -678,6 +703,7 @@
           setLeaderboardView('top5');
           setLeaderboardError(null);
           setQuestionStartTime(null);
+          setShowDropdown(false);
         } catch (error) {
           console.error('Error restarting game:', error);
         }
@@ -967,21 +993,33 @@
                   ? `Enter name for ${gameMode === 'mini' ? 'Mini' : 'Full'} Game!`
                   : `输入名字开始${gameMode === 'mini' ? '迷你' : '完整'}游戏！`}
               </p>
-              <div className="relative w-full">
+              <div className="relative w-full" ref={inputRef}>
                 <input
                   type="text"
                   placeholder={language === 'en' ? 'Full Name' : '全名'}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
+                  onFocus={() => setShowDropdown(fullName.trim() && filteredNames.length > 0)}
                   className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}
                   required
                 />
-                {filteredNames.length > 0 && fullName.trim() && (
-                  <ul className={`absolute w-full max-h-40 overflow-y-auto border rounded-lg mt-1 ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'} z-10`}>
+                {csvLoading && (
+                  <p className="text-sm mt-2 text-gray-600">
+                    {language === 'en' ? 'Loading names...' : '正在加载姓名...'}
+                  </p>
+                )}
+                {csvError && (
+                  <p className="text-sm mt-2 text-red-600">{csvError}</p>
+                )}
+                {showDropdown && filteredNames.length > 0 && fullName.trim() && (
+                  <ul className={`absolute w-full max-h-40 overflow-y-auto border rounded-lg mt-1 shadow-lg z-10 ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}>
                     {filteredNames.map((name, index) => (
                       <li
                         key={index}
-                        onClick={() => setFullName(name.full)}
+                        onClick={() => {
+                          setFullName(name.full);
+                          setShowDropdown(false);
+                        }}
                         className={`p-2 hover:bg-opacity-80 cursor-pointer ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
                       >
                         {name.full}
