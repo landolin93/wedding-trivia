@@ -262,6 +262,7 @@
       const [csvError, setCsvError] = React.useState(null);
       const [csvLoading, setCsvLoading] = React.useState(false);
       const [showDropdown, setShowDropdown] = React.useState(false);
+      const [nameError, setNameError] = React.useState(null);
       const [gameMode, setGameMode] = React.useState(null);
       const [currentQuestion, setCurrentQuestion] = React.useState(0);
       const [score, setScore] = React.useState(0);
@@ -321,6 +322,7 @@
         if (lowerInput === '') {
           setFilteredNames(names);
           setShowDropdown(false);
+          setNameError(null);
         } else {
           const filtered = names.filter(({ full }) =>
             full.toLowerCase().includes(lowerInput)
@@ -556,26 +558,34 @@
           e.preventDefault();
           if (fullName.trim()) {
             const [first, last] = fullName.split(' ').map(s => s.trim());
-            if (first && last) {
-              setCurrentQuestion(0);
-              setScore(0);
-              setSelectedOption(null);
-              setQuestions([]);
-              setShuffledOptions([]);
-              setQuestionElapsedTime(0);
-              setAnswered(false);
-              setTotalTime(0);
-              setFinalTime(0);
-              setQuestionStartTime(null);
-              setGameState('playing');
-            } else {
-              alert(language === 'en' ? 'Please enter a valid full name.' : '请输入有效的全名。');
+            if (!first || !last) {
+              setNameError(language === 'en' ? 'Please enter a valid full name (first and last).' : '请输入有效的全名（名字和姓氏）。');
+              return;
             }
+            const isValidName = names.some(({ full }) => full.toLowerCase() === fullName.toLowerCase());
+            console.log('Validating name:', fullName, 'Is valid:', isValidName);
+            if (!isValidName) {
+              setNameError(language === 'en' ? 'Name must match a name in the list.' : '名字必须与列表中的名字匹配。');
+              return;
+            }
+            setNameError(null);
+            setCurrentQuestion(0);
+            setScore(0);
+            setSelectedOption(null);
+            setQuestions([]);
+            setShuffledOptions([]);
+            setQuestionElapsedTime(0);
+            setAnswered(false);
+            setTotalTime(0);
+            setFinalTime(0);
+            setQuestionStartTime(null);
+            setGameState('playing');
           } else {
-            alert(language === 'en' ? 'Please enter a full name.' : '请输入全名。');
+            setNameError(language === 'en' ? 'Please enter a full name.' : '请输入全名。');
           }
         } catch (error) {
           console.error('Error submitting name:', error);
+          setNameError(language === 'en' ? 'Error submitting name.' : '提交名字时出错。');
         }
       };
 
@@ -704,6 +714,7 @@
           setLeaderboardError(null);
           setQuestionStartTime(null);
           setShowDropdown(false);
+          setNameError(null);
         } catch (error) {
           console.error('Error restarting game:', error);
         }
@@ -994,15 +1005,32 @@
                   : `输入名字开始${gameMode === 'mini' ? '迷你' : '完整'}游戏！`}
               </p>
               <div className="relative w-full" ref={inputRef}>
-                <input
-                  type="text"
-                  placeholder={language === 'en' ? 'Full Name' : '全名'}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onFocus={() => setShowDropdown(fullName.trim() && filteredNames.length > 0)}
-                  className={`w-full p-2 border rounded-lg ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={language === 'en' ? 'Full Name' : '全名'}
+                    value={fullName}
+                    onChange={(e) => {
+                      setFullName(e.target.value);
+                      setNameError(null);
+                    }}
+                    onFocus={() => setShowDropdown(fullName.trim() && filteredNames.length > 0)}
+                    className={`w-full p-2 pr-10 border rounded-lg ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}
+                    required
+                  />
+                  {fullName && (
+                    <button
+                      onClick={() => {
+                        setFullName('');
+                        setShowDropdown(false);
+                        setNameError(null);
+                      }}
+                      className={`absolute right-2 top-1/2 transform -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full ${darkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'} text-sm`}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
                 {csvLoading && (
                   <p className="text-sm mt-2 text-gray-600">
                     {language === 'en' ? 'Loading names...' : '正在加载姓名...'}
@@ -1010,6 +1038,9 @@
                 )}
                 {csvError && (
                   <p className="text-sm mt-2 text-red-600">{csvError}</p>
+                )}
+                {nameError && (
+                  <p className="text-sm mt-2 text-red-600">{nameError}</p>
                 )}
                 {showDropdown && filteredNames.length > 0 && fullName.trim() && (
                   <ul className={`absolute w-full max-h-40 overflow-y-auto border rounded-lg mt-1 shadow-lg z-10 ${darkMode ? 'bg-gray-700 text-gray-100' : 'bg-white text-gray-900'}`}>
@@ -1019,6 +1050,7 @@
                         onClick={() => {
                           setFullName(name.full);
                           setShowDropdown(false);
+                          setNameError(null);
                         }}
                         className={`p-2 hover:bg-opacity-80 cursor-pointer ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-200'}`}
                       >
