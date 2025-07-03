@@ -108,7 +108,7 @@
       alert('Failed to initialize Firebase: ' + error.message);
     }
 
-    // 19 school-themed questions for 3rd graders with translations
+    // 20 school-themed questions for 3rd graders with translations
     const allQuestions = [
       {
         question: { en: "What is 5 + 3?", zh: "5 + 3 等于多少？" },
@@ -217,6 +217,12 @@
         options: { en: ["Pen", "Pencil", "Chalk", "Marker"], zh: ["钢笔", "铅笔", "粉笔", "马克笔"] },
         correct: "Chalk",
         correctZh: "粉笔"
+      },
+      {
+        question: { en: "What is the smell of rain like?", zh: "雨的味道是什么样的？" },
+        options: { en: ["Sweet", "Sour", "Bitter", "Salty"], zh: ["甜的", "酸的", "苦的", "咸的"] },
+        correct: "Sweet",
+        correctZh: "甜的"
       }
     ];
 
@@ -274,12 +280,12 @@
       const [darkMode, setDarkMode] = React.useState(false);
       const [lastFetchTimes, setLastFetchTimes] = React.useState({});
 
-      // Fetch names from CSV file on GitHub
+      // Fetch names from CSV file in the main branch
       React.useEffect(() => {
         const fetchNames = async () => {
           try {
-            // Replace with actual GitHub raw URL or local path
-            const csvUrl = '/names.csv'; // e.g., https://raw.githubusercontent.com/username/repository/main/names.csv
+            // Replace with actual GitHub raw URL, e.g., https://raw.githubusercontent.com/username/repository/main/names.csv
+            const csvUrl = '/names.csv'; // Assumes names.csv is in the same directory as index.html
             const response = await fetch(csvUrl);
             if (!response.ok) throw new Error('Failed to fetch CSV');
             const text = await response.text();
@@ -292,6 +298,7 @@
               .filter(({ first, last }) => first && last); // Filter out invalid entries
             setNames(parsedNames);
             setFilteredNames(parsedNames);
+            console.log('Names loaded:', parsedNames.length);
           } catch (error) {
             console.error('Error fetching names:', error);
           }
@@ -339,14 +346,29 @@
           const audio = document.getElementById('background-music');
           audio.volume = 0.2;
           audio.muted = muted;
-          audio.play().catch(error => {
-            console.log('Autoplay prevented:', error);
+          audio.play().then(() => {
+            console.log('Background music started successfully');
+          }).catch(error => {
+            console.log('Autoplay prevented:', error.message);
             const handleInteraction = () => {
-              audio.play().catch(err => console.error('Audio play error:', err));
+              audio.play().then(() => {
+                console.log('Background music started after user interaction');
+              }).catch(err => {
+                console.error('Audio play error:', err);
+              });
               document.removeEventListener('click', handleInteraction);
             };
             document.addEventListener('click', handleInteraction);
           });
+          audio.onended = () => {
+            console.log('Audio ended, restarting due to loop attribute');
+            audio.currentTime = 0;
+            audio.play().catch(err => console.error('Restart error:', err));
+          };
+          return () => {
+            audio.pause();
+            console.log('Audio paused on component unmount');
+          };
         } catch (error) {
           console.error('Error controlling background music:', error);
         }
@@ -668,7 +690,7 @@
           const leaderboardTitle = language === 'en'
             ? (leaderboardType === 'mini' ? 'Mini Game Leaderboard' : 'Full Game Leaderboard')
             : (leaderboardType === 'mini' ? '迷你游戏排行榜' : '完整游戏排行榜');
-          const maxScore = leaderboardType === 'mini' ? 10 : 19;
+          const maxScore = leaderboardType === 'mini' ? 10 : 20;
 
           const uniqueLeaderboard = Object.values(
             leaderboard.reduce((acc, entry) => {
@@ -924,7 +946,7 @@
                   onClick={() => handleModeSelect('full')}
                   className="w-24 h-24 bg-custom-blue text-white rounded-lg hover:bg-opacity-80 transition-colors flex flex-col items-center justify-center text-sm"
                 >
-                  {language === 'en' ? <>Full<br />(19Q)</> : <>完整<br />(19题)</>}
+                  {language === 'en' ? <>Full<br />(20Q)</> : <>完整<br />(20题)</>}
                 </button>
                 <button
                   onClick={() => setGameState('mainMenu')}
